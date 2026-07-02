@@ -1,25 +1,49 @@
 import ExcelJS from "exceljs"
 import { NextResponse, type NextRequest } from "next/server"
 import { requireProfile } from "@/lib/data"
+import { getSql } from "@/lib/db"
 import { canSeeAllDepartments, statusLabels } from "@/lib/risk/calculations"
 
 export const dynamic = "force-dynamic"
 
+type ExportRiskRow = {
+  [key: string]: unknown
+  status: keyof typeof statusLabels
+  attachments: unknown
+}
+
 export async function GET(request: NextRequest) {
-  const { supabase, profile } = await requireProfile()
+  const { profile } = await requireProfile()
+  const sql = getSql()
   const department = request.nextUrl.searchParams.get("department")
-  let query = supabase
-    .from("risks")
-    .select("*, departments(name), risk_categories(name), owner:profiles!risks_owner_id_fkey(full_name, email)")
-    .order("risk_code")
+  const scopedDepartment = canSeeAllDepartments(profile.role) ? department : profile.department_id
 
-  if (department) query = query.eq("department_id", department)
-  if (!canSeeAllDepartments(profile.role) && profile.department_id) {
-    query = query.eq("department_id", profile.department_id)
-  }
-
-  const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const data = scopedDepartment
+    ? await sql`
+        select
+          r.*,
+          d.name as department,
+          c.name as category,
+          o.full_name as owner
+        from risks r
+        join departments d on d.id = r.department_id
+        join risk_categories c on c.id = r.category_id
+        left join profiles o on o.id = r.owner_id
+        where r.department_id = ${scopedDepartment}
+        order by r.risk_code
+      `
+    : await sql`
+        select
+          r.*,
+          d.name as department,
+          c.name as category,
+          o.full_name as owner
+        from risks r
+        join departments d on d.id = r.department_id
+        join risk_categories c on c.id = r.category_id
+        left join profiles o on o.id = r.owner_id
+        order by r.risk_code
+      `
 
   const workbook = new ExcelJS.Workbook()
   workbook.creator = "Enterprise Risk Register"
@@ -55,12 +79,9 @@ export async function GET(request: NextRequest) {
     { header: "Attachments", key: "attachments", width: 34 },
   ]
 
-  for (const risk of data ?? []) {
+  for (const risk of data as ExportRiskRow[]) {
     sheet.addRow({
       ...risk,
-      department: risk.departments?.name,
-      category: risk.risk_categories?.name,
-      owner: risk.owner?.full_name,
       status: statusLabels[risk.status as keyof typeof statusLabels],
       attachments: Array.isArray(risk.attachments) ? risk.attachments.join("\n") : "",
     })

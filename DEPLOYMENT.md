@@ -16,25 +16,35 @@ Vercel should auto-detect Next.js.
 - Output Directory: `.next`
 - Node.js Version: 20.x or newer
 
+## Database
+
+Use Neon Postgres from the Vercel Marketplace.
+
+1. In Vercel, open the project.
+2. Add Storage -> Neon Postgres.
+3. Connect the database to the project.
+4. Confirm Vercel injects `DATABASE_URL` or `POSTGRES_URL`.
+
 ## Environment Variables
 
-Add these in Vercel Project Settings -> Environment Variables for Production and Preview:
+Add one of these in Vercel Project Settings -> Environment Variables for Production and Preview if the Marketplace does not inject it automatically:
 
 ```text
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
+DATABASE_URL
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` is required only for seed/admin scripts. Keep it secret and never expose it client-side.
+or
 
-## Supabase
+```text
+POSTGRES_URL
+```
+
+## Schema and Seed
 
 Before using the deployed app:
 
-1. Run `supabase/schema.sql` in the Supabase SQL Editor.
-2. Add the Vercel deployment URL to Supabase Auth redirect URLs.
-3. Run `npm run seed` locally against the same Supabase project, or create users manually.
+1. Run `database/schema.sql` against the Neon database.
+2. Run `npm run seed` locally against the same database, or create users manually.
 
 Sample seeded password:
 

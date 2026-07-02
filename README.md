@@ -1,12 +1,12 @@
 # Enterprise Risk Register MVP
 
-Production-ready MVP for the Risk Assessment and Risk Register Management System described in the PDF. It uses Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui, Supabase Auth, Supabase PostgreSQL with RLS, Recharts, and ExcelJS.
+Production-ready MVP for the Risk Assessment and Risk Register Management System described in the PDF. It uses Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui, Vercel Marketplace Neon Postgres, Recharts, and ExcelJS.
 
 ## Features
 
-- Supabase email/password authentication.
+- Database-backed email/password authentication with bcrypt password hashes and HTTP-only session cookies.
 - Role-based access for Department User, Department Manager, Strategy Team, and System Admin.
-- Department-scoped RLS in PostgreSQL.
+- Department-scoped access enforced in server-side queries and server actions.
 - Risk form with automatic inherent and residual score/level calculations.
 - Workflow: draft -> manager review -> strategy review -> official risk -> final approved, with return paths.
 - Dashboard KPIs, charts, pending review counts, and recent risk table.
@@ -23,21 +23,21 @@ Production-ready MVP for the Risk Assessment and Risk Register Management System
 npm install
 ```
 
-2. Create a Supabase project and copy `.env.example` to `.env.local`:
+2. Create a Vercel Marketplace Neon Postgres database and copy `.env.example` to `.env.local`:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+DATABASE_URL=postgres://user:password@host/database?sslmode=require
 ```
 
-3. In Supabase SQL Editor, run:
+Vercel may also provide `POSTGRES_URL`; the app accepts either `DATABASE_URL` or `POSTGRES_URL`.
 
-```sql
--- paste supabase/schema.sql
+3. Run the schema against the database:
+
+```bash
+# paste database/schema.sql into your Neon SQL editor, or run it with psql
 ```
 
-4. Seed auth users, profiles, departments, categories, risks, and workflow events:
+4. Seed users, profiles, departments, categories, risks, and workflow events:
 
 ```bash
 npm run seed
@@ -68,26 +68,25 @@ Open `http://localhost:3000`.
 
 1. Push this project to GitHub.
 2. Import the repository in Vercel.
-3. Set these Vercel environment variables for Production and Preview:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-4. Deploy.
-5. Run `npm run seed` locally against the same Supabase project, or create equivalent users through a secure admin process.
+3. Add Neon Postgres from the Vercel Marketplace and connect it to this project.
+4. Ensure Vercel has `DATABASE_URL` or `POSTGRES_URL` for Production and Preview.
+5. Deploy.
+6. Run `database/schema.sql` against the production database.
+7. Run `npm run seed` locally against the same production database, or create users through a secure admin process.
 
 ## Database
 
-The schema is in `supabase/schema.sql`. It includes:
+The schema is in `database/schema.sql`. It includes:
 
 - `departments`
 - `risk_categories`
 - `profiles`
+- `app_sessions`
 - `risks`
 - `risk_workflow_events`
 - Postgres enums for roles, workflow statuses, and risk levels
-- RLS policies for department scoping and admin/strategy access
-- Indexes for workflow, department, residual level, target date, and audit history queries
+- Indexes for sessions, workflow, department, residual level, target date, and audit history queries
 
 ## Notes
 
-The app uses real Supabase Auth and database access. Seed data is clearly marked as seed data and is created through the service role script.
+The app uses real database-backed authentication and Postgres access. Seed data is clearly marked as seed data and can be replaced by production records.

@@ -50,7 +50,7 @@ export default async function ReviewRiskPage({ params }: { params: Promise<{ id:
         <Card>
           <CardHeader><CardTitle>Workflow action</CardTitle></CardHeader>
           <CardContent>
-            <p className="mb-3 text-sm">Current status: <span className="font-semibold">{statusLabels[risk.status]}</span></p>
+            <p className="mb-3 text-sm">Current status: <span className="font-semibold">{statusLabels[risk.status as WorkflowStatus]}</span></p>
             {actions.length ? (
               <form action={runAction} className="flex flex-col gap-3">
                 <Textarea name="comments" placeholder="Add review comments" rows={4} />

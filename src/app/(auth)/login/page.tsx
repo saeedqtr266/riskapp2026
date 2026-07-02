@@ -26,7 +26,7 @@ export default async function LoginPage({
         <div className="max-w-xl">
           <h2 className="text-4xl font-semibold leading-tight">Department risk capture, review, approval, and reporting in one secure workflow.</h2>
           <p className="mt-5 text-slate-300">
-            Supabase Auth, PostgreSQL row-level security, role-based actions, audit events, dashboards, and formatted Excel exports.
+            Vercel Postgres, secure app sessions, role-based actions, audit events, dashboards, and formatted Excel exports.
           </p>
         </div>
       </section>
@@ -55,7 +55,7 @@ export default async function LoginPage({
               </FieldGroup>
             </form>
             <div className="mt-6 rounded-lg bg-slate-50 p-4 text-xs text-slate-600">
-              Seed users are listed in the README after running the Supabase seed script.
+              Seed users are listed in the README after running the database seed script.
             </div>
           </CardContent>
         </Card>

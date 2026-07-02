@@ -8,12 +8,12 @@ export default function SetupPage() {
     {
       icon: KeyRound,
       title: "Add environment variables",
-      body: "Copy .env.example to .env.local and set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY.",
+      body: "Create a Vercel Marketplace Neon Postgres database, then set DATABASE_URL locally and in Vercel.",
     },
     {
       icon: Database,
       title: "Create database objects",
-      body: "Run supabase/schema.sql in the Supabase SQL Editor to create tables, enums, indexes, and RLS policies.",
+      body: "Run database/schema.sql against the Vercel/Neon Postgres database to create tables, indexes, and constraints.",
     },
     {
       icon: FileCode2,
@@ -31,9 +31,9 @@ export default function SetupPage() {
     <main className="min-h-dvh bg-slate-50 p-6">
       <div className="mx-auto flex max-w-4xl flex-col gap-6 py-12">
         <div>
-          <h1 className="text-3xl font-semibold text-slate-950">Supabase setup required</h1>
+          <h1 className="text-3xl font-semibold text-slate-950">Database setup required</h1>
           <p className="mt-2 text-slate-600">
-            The app is running, but the dashboard needs Supabase Auth and PostgreSQL configuration before protected pages can load.
+            The app is running, but the dashboard needs a Vercel Postgres/Neon database before protected pages can load.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -53,7 +53,7 @@ export default function SetupPage() {
           <p className="text-sm font-semibold">Expected local files</p>
           <pre className="mt-3 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">
 {`risk-register-mvp/.env.local
-risk-register-mvp/supabase/schema.sql
+risk-register-mvp/database/schema.sql
 risk-register-mvp/scripts/seed.mjs`}
           </pre>
         </div>

@@ -1,17 +1,14 @@
-import { createClient } from "@supabase/supabase-js"
+import { neon } from "@neondatabase/serverless"
+import bcrypt from "bcryptjs"
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL
 
-if (!url || !serviceRoleKey) {
-  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+if (!databaseUrl) {
+  console.error("Missing DATABASE_URL or POSTGRES_URL")
   process.exit(1)
 }
 
-const supabase = createClient(url, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-})
-
+const sql = neon(databaseUrl)
 const password = "RiskMVP!2026"
 const users = [
   { email: "department.user@example.gov", full_name: "Department User", role: "department_user", department: "Information Technology" },
@@ -19,22 +16,6 @@ const users = [
   { email: "strategy@example.gov", full_name: "Strategy Team User", role: "strategy_team", department: "Strategy" },
   { email: "admin@example.gov", full_name: "System Admin", role: "system_admin", department: "Strategy" },
 ]
-
-async function upsertAuthUser(user) {
-  const { data, error } = await supabase.auth.admin.createUser({
-    email: user.email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: user.full_name, role: user.role },
-  })
-  if (!error) return data.user
-
-  const { data: list, error: listError } = await supabase.auth.admin.listUsers()
-  if (listError) throw listError
-  const existing = list.users.find((item) => item.email === user.email)
-  if (!existing) throw error
-  return existing
-}
 
 function riskLevel(score) {
   if (score >= 16) return "Critical"
@@ -44,28 +25,27 @@ function riskLevel(score) {
 }
 
 async function main() {
-  const { data: departments, error: deptError } = await supabase.from("departments").select("*")
-  if (deptError) throw deptError
-  const { data: categories, error: catError } = await supabase.from("risk_categories").select("*")
-  if (catError) throw catError
-
+  const departments = await sql`select id, name from departments`
+  const categories = await sql`select id, name from risk_categories`
   const departmentByName = new Map(departments.map((department) => [department.name, department]))
   const categoryByName = new Map(categories.map((category) => [category.name, category]))
+  const passwordHash = await bcrypt.hash(password, 12)
   const createdUsers = []
 
   for (const user of users) {
-    const authUser = await upsertAuthUser(user)
     const department = departmentByName.get(user.department)
-    const { error } = await supabase.from("profiles").upsert({
-      id: authUser.id,
-      email: user.email,
-      full_name: user.full_name,
-      role: user.role,
-      department_id: department?.id ?? null,
-      active: true,
-    })
-    if (error) throw error
-    createdUsers.push({ ...user, id: authUser.id, department_id: department?.id })
+    const rows = await sql`
+      insert into profiles (email, password_hash, full_name, role, department_id, active)
+      values (${user.email}, ${passwordHash}, ${user.full_name}, ${user.role}, ${department?.id ?? null}, true)
+      on conflict (email) do update set
+        password_hash = excluded.password_hash,
+        full_name = excluded.full_name,
+        role = excluded.role,
+        department_id = excluded.department_id,
+        active = true
+      returning id, department_id
+    `
+    createdUsers.push({ ...user, id: rows[0].id, department_id: rows[0].department_id })
   }
 
   const itDept = departmentByName.get("Information Technology")
@@ -156,18 +136,59 @@ async function main() {
   })
 
   for (const risk of samples) {
-    const { data: existing } = await supabase.from("risks").select("id").eq("title", risk.title).maybeSingle()
-    const query = existing
-      ? supabase.from("risks").update(risk).eq("id", existing.id).select("id, status").single()
-      : supabase.from("risks").insert(risk).select("id, status").single()
-    const { data, error } = await query
-    if (error) throw error
-    await supabase.from("risk_workflow_events").insert({
-      risk_id: data.id,
-      actor_id: risk.created_by,
-      to_status: data.status,
-      comments: "Seed data.",
-    })
+    const existing = await sql`select id from risks where title = ${risk.title} limit 1`
+    const rows = existing.length
+      ? await sql`
+          update risks set
+            department_id = ${risk.department_id},
+            category_id = ${risk.category_id},
+            owner_id = ${risk.owner_id},
+            description = ${risk.description},
+            causes = ${risk.causes},
+            consequences = ${risk.consequences},
+            existing_controls = ${risk.existing_controls},
+            current_controls = ${risk.current_controls},
+            likelihood_score = ${risk.likelihood_score},
+            impact_score = ${risk.impact_score},
+            inherent_score = ${risk.inherent_score},
+            inherent_level = ${risk.inherent_level},
+            residual_likelihood_score = ${risk.residual_likelihood_score},
+            residual_impact_score = ${risk.residual_impact_score},
+            residual_score = ${risk.residual_score},
+            residual_level = ${risk.residual_level},
+            mitigation_actions = ${risk.mitigation_actions},
+            action_owner = ${risk.action_owner},
+            target_completion_date = ${risk.target_completion_date},
+            status = ${risk.status},
+            approval_status = ${risk.approval_status},
+            updated_by = ${risk.updated_by}
+          where id = ${existing[0].id}
+          returning id, status
+        `
+      : await sql`
+          insert into risks (
+            department_id, category_id, owner_id, title, description, causes, consequences,
+            existing_controls, current_controls, likelihood_score, impact_score, inherent_score,
+            inherent_level, residual_likelihood_score, residual_impact_score, residual_score,
+            residual_level, mitigation_actions, action_owner, target_completion_date, status,
+            approval_status, created_by, updated_by
+          )
+          values (
+            ${risk.department_id}, ${risk.category_id}, ${risk.owner_id}, ${risk.title},
+            ${risk.description}, ${risk.causes}, ${risk.consequences}, ${risk.existing_controls},
+            ${risk.current_controls}, ${risk.likelihood_score}, ${risk.impact_score},
+            ${risk.inherent_score}, ${risk.inherent_level}, ${risk.residual_likelihood_score},
+            ${risk.residual_impact_score}, ${risk.residual_score}, ${risk.residual_level},
+            ${risk.mitigation_actions}, ${risk.action_owner}, ${risk.target_completion_date},
+            ${risk.status}, ${risk.approval_status}, ${risk.created_by}, ${risk.updated_by}
+          )
+          returning id, status
+        `
+
+    await sql`
+      insert into risk_workflow_events (risk_id, actor_id, to_status, comments)
+      values (${rows[0].id}, ${risk.created_by}, ${rows[0].status}, 'Seed data.')
+    `
   }
 
   console.log("Seed complete.")
